@@ -1,5 +1,6 @@
 package edu.coursera.parallel;
 
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.RecursiveAction;
 
 /**
@@ -34,7 +35,7 @@ public final class ReciprocalArraySum {
      * Computes the size of each chunk, given the number of chunks to create
      * across a given number of elements.
      *
-     * @param nChunks The number of chunks to create
+     * @param nChunks   The number of chunks to create
      * @param nElements The number of elements to chunk across
      * @return The default chunk size
      */
@@ -47,14 +48,14 @@ public final class ReciprocalArraySum {
      * Computes the inclusive element index that the provided chunk starts at,
      * given there are a certain number of chunks.
      *
-     * @param chunk The chunk to compute the start of
-     * @param nChunks The number of chunks created
+     * @param chunk     The chunk to compute the start of
+     * @param nChunks   The number of chunks created
      * @param nElements The number of elements to chunk across
      * @return The inclusive index that this chunk starts at in the set of
-     *         nElements
+     * nElements
      */
     private static int getChunkStartInclusive(final int chunk,
-            final int nChunks, final int nElements) {
+                                              final int nChunks, final int nElements) {
         final int chunkSize = getChunkSize(nChunks, nElements);
         return chunk * chunkSize;
     }
@@ -63,13 +64,13 @@ public final class ReciprocalArraySum {
      * Computes the exclusive element index that the provided chunk ends at,
      * given there are a certain number of chunks.
      *
-     * @param chunk The chunk to compute the end of
-     * @param nChunks The number of chunks created
+     * @param chunk     The chunk to compute the end of
+     * @param nChunks   The number of chunks created
      * @param nElements The number of elements to chunk across
      * @return The exclusive end index for this chunk
      */
     private static int getChunkEndExclusive(final int chunk, final int nChunks,
-            final int nElements) {
+                                            final int nElements) {
         final int chunkSize = getChunkSize(nChunks, nElements);
         final int end = (chunk + 1) * chunkSize;
         if (end > nElements) {
@@ -101,15 +102,18 @@ public final class ReciprocalArraySum {
          */
         private double value;
 
+        private final static int THRESHOLD = 1000;
+
         /**
          * Constructor.
+         *
          * @param setStartIndexInclusive Set the starting index to begin
-         *        parallel traversal at.
-         * @param setEndIndexExclusive Set ending index for parallel traversal.
-         * @param setInput Input values
+         *                               parallel traversal at.
+         * @param setEndIndexExclusive   Set ending index for parallel traversal.
+         * @param setInput               Input values
          */
         ReciprocalArraySumTask(final int setStartIndexInclusive,
-                final int setEndIndexExclusive, final double[] setInput) {
+                               final int setEndIndexExclusive, final double[] setInput) {
             this.startIndexInclusive = setStartIndexInclusive;
             this.endIndexExclusive = setEndIndexExclusive;
             this.input = setInput;
@@ -117,6 +121,7 @@ public final class ReciprocalArraySum {
 
         /**
          * Getter for the value produced by this task.
+         *
          * @return Value produced by this task
          */
         public double getValue() {
@@ -125,7 +130,21 @@ public final class ReciprocalArraySum {
 
         @Override
         protected void compute() {
-            // TODO
+            if (endIndexExclusive - startIndexInclusive < THRESHOLD) {
+                value = 0;
+                for (int i = startIndexInclusive; i < endIndexExclusive; i++) {
+                    value += 1 / input[i];
+                }
+            } else {
+                int mid = (startIndexInclusive + endIndexExclusive) / 2;
+                ReciprocalArraySumTask t1 = new ReciprocalArraySumTask(startIndexInclusive, mid, input);
+                ReciprocalArraySumTask t2 = new ReciprocalArraySumTask(mid, endIndexExclusive, input);
+                t1.fork();
+                t2.compute();
+                t1.join();
+                value = t1.getValue() + t2.getValue();
+            }
+
         }
     }
 
@@ -141,14 +160,10 @@ public final class ReciprocalArraySum {
     protected static double parArraySum(final double[] input) {
         assert input.length % 2 == 0;
 
-        double sum = 0;
+        ReciprocalArraySumTask task = new ReciprocalArraySumTask(0, input.length, input);
+        ForkJoinPool.commonPool().invoke(task);
 
-        // Compute sum of reciprocals of array elements
-        for (int i = 0; i < input.length; i++) {
-            sum += 1 / input[i];
-        }
-
-        return sum;
+        return task.getValue();
     }
 
     /**
@@ -157,17 +172,26 @@ public final class ReciprocalArraySum {
      * above utilities getChunkStartInclusive and getChunkEndExclusive helpful
      * in computing the range of element indices that belong to each chunk.
      *
-     * @param input Input array
+     * @param input    Input array
      * @param numTasks The number of tasks to create
      * @return The sum of the reciprocals of the array input
      */
     protected static double parManyTaskArraySum(final double[] input,
-            final int numTasks) {
+                                                final int numTasks) {
         double sum = 0;
 
-        // Compute sum of reciprocals of array elements
-        for (int i = 0; i < input.length; i++) {
-            sum += 1 / input[i];
+        ReciprocalArraySumTask[] taskArr = new ReciprocalArraySumTask[numTasks];
+
+        for (int i = 0; i < numTasks; i++) {
+            int start = getChunkStartInclusive(i, numTasks, input.length);
+            int end = getChunkEndExclusive(i, numTasks, input.length);
+            taskArr[i] = new ReciprocalArraySumTask(start, end, input);
+        }
+
+        ReciprocalArraySumTask.invokeAll(taskArr);
+
+        for (ReciprocalArraySumTask task : taskArr) {
+            sum += task.getValue();
         }
 
         return sum;

@@ -1,6 +1,7 @@
 package edu.coursera.parallel;
 
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -92,7 +93,7 @@ public final class StudentAnalytics {
     }
 
     /**
-     * TODO compute the most common first name out of all students that are no
+     * Compute the most common first name out of all students that are no
      * longer active in the class using parallel streams. This should mirror the
      * functionality of mostCommonFirstNameOfInactiveStudentsImperative. This
      * method should not use any loops.
@@ -102,7 +103,13 @@ public final class StudentAnalytics {
      */
     public String mostCommonFirstNameOfInactiveStudentsParallelStream(
             final Student[] studentArray) {
-        throw new UnsupportedOperationException();
+
+        Map<String, Long> nameMap = Arrays.asList(studentArray).parallelStream()
+                .filter(student -> !student.checkIsCurrent())
+                .collect(Collectors.groupingBy(Student::getFirstName, Collectors.counting()));
+
+        return nameMap.entrySet().parallelStream().max(Map.Entry.comparingByValue()).map(Map.Entry::getKey).orElse(null);
+
     }
 
     /**

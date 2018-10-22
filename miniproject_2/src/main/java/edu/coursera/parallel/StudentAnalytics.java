@@ -1,5 +1,6 @@
 package edu.coursera.parallel;
 
+import java.lang.reflect.Array;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -133,7 +134,7 @@ public final class StudentAnalytics {
     }
 
     /**
-     * TODO compute the number of students who have failed the course who are
+     * Compute the number of students who have failed the course who are
      * also older than 20 years old. A failing grade is anything below a 65. A
      * student has only failed the course if they have a failing grade and they
      * are not currently active. This should mirror the functionality of
@@ -145,6 +146,10 @@ public final class StudentAnalytics {
      */
     public int countNumberOfFailedStudentsOlderThan20ParallelStream(
             final Student[] studentArray) {
-        throw new UnsupportedOperationException();
+
+        return (int) Arrays.asList(studentArray).parallelStream()
+                .filter(s -> !s.checkIsCurrent() && s.getAge() > 20 && s.getGrade() < 65)
+                .count();
+
     }
 }

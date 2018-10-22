@@ -1,9 +1,7 @@
 package edu.coursera.parallel;
 
-import java.util.List;
-import java.util.ArrayList;
-import java.util.Map;
-import java.util.HashMap;
+import java.util.*;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
@@ -36,7 +34,7 @@ public final class StudentAnalytics {
     }
 
     /**
-     * TODO compute the average age of all actively enrolled students using
+     * Compute the average age of all actively enrolled students using
      * parallel streams. This should mirror the functionality of
      * averageAgeOfEnrolledStudentsImperative. This method should not use any
      * loops.
@@ -46,7 +44,11 @@ public final class StudentAnalytics {
      */
     public double averageAgeOfEnrolledStudentsParallelStream(
             final Student[] studentArray) {
-        throw new UnsupportedOperationException();
+
+        return Arrays.asList(studentArray).parallelStream()
+                .filter(student -> student.checkIsCurrent())
+                .mapToDouble(student -> student.getAge()).average().getAsDouble();
+
     }
 
     /**
